@@ -34,6 +34,10 @@ Skala rynku: ok. 442 tys. aktywnych firm budowlanych, 95,9% to mikrofirmy (GUS, 
 4. **Negocjacje wielokanałowe.** Mail, SMS, WhatsApp (docelowo telefon). Per oferent: ciągłe podsumowanie kontekstu rozmowy. System podpowiada argumenty z ofert innych oferentów i szkicuje wiadomości; człowiek zatwierdza każdą wysyłkę.
 5. **Wybór i zamówienie.** Wybór oferenta per pozycja/pakiet (możliwy podział), zamówienie, śledzenie dostaw względem harmonogramu.
 
+### Doprecyzowanie kroku 3 (2026-10-01): optymalny koszyk
+
+„Porównanie ofert” znaczy: od kilku hurtowni przyszło kilka ofert, a użytkownik potrzebuje narzędzia, które **zbuduje optymalne zamówienie** — podział pozycji między hurtownie o najniższym koszcie całkowitym, z uwzględnieniem rabatów (od cennika, od wartości koszyka, pakietowych), darmowej dostawy od kwoty, kosztów transportu/HDS, minimów logistycznych i opakowań, dostępności i terminów vs harmonogram, zamienników i terminu płatności. Wynik: rekomendowany podział z rozbiciem kosztu, scenariusze „co jeśli” (np. maks. N hurtowni) i cena docelowa per oferent/pakiet jako argument do negocjacji (krok 4). Szczegóły i uzasadnienie: `02-research-zakupy-budowlane-pazdziernik-2026.pdf`, sekcja „Optymalizacja koszyka”. [ZAŁOŻENIE — wartość do zmierzenia w walidacji]
+
 ## Kandydaci na epiki
 
 | Epik | Krok procesu |
@@ -42,6 +46,7 @@ Skala rynku: ok. 442 tys. aktywnych firm budowlanych, 95,9% to mikrofirmy (GUS, 
 | E2. Projekt budowy i harmonogram dostaw | 2 |
 | E3. Rejestr oferentów i rozsyłanie zapytań (jedna paczka → wielu odbiorców, terminy, przypomnienia) | 3 |
 | E4. Przyjmowanie i normalizacja ofert do macierzy porównawczej | 3 |
+| E4b. Optymalny koszyk: podział zamówienia między oferentów (rabaty, progi darmowej dostawy, transport, minima, terminy, termin płatności), scenariusze, cena docelowa | 3 |
 | E5. Wątek z oferentem przez wszystkie kanały (mail, SMS, WhatsApp, telefon) | 4 |
 | E6. Copilot negocjacji: podsumowanie kontekstu, argumenty, szkice wiadomości z akceptacją | 4 |
 | E7. Wybór, zamówienie zakupu, śledzenie dostaw | 5 |
