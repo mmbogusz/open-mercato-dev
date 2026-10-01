@@ -38,6 +38,8 @@ Skala rynku: ok. 442 tys. aktywnych firm budowlanych, 95,9% to mikrofirmy (GUS, 
 
 „Porównanie ofert” znaczy: od kilku hurtowni przyszło kilka ofert, a użytkownik potrzebuje narzędzia, które **zbuduje optymalne zamówienie** — podział pozycji między hurtownie o najniższym koszcie całkowitym, z uwzględnieniem rabatów (od cennika, od wartości koszyka, pakietowych), darmowej dostawy od kwoty, kosztów transportu/HDS, minimów logistycznych i opakowań, dostępności i terminów vs harmonogram, zamienników i terminu płatności. Wynik: rekomendowany podział z rozbiciem kosztu, scenariusze „co jeśli” (np. maks. N hurtowni) i cena docelowa per oferent/pakiet jako argument do negocjacji (krok 4). Szczegóły i uzasadnienie: `02-research-zakupy-budowlane-pazdziernik-2026.pdf`, sekcja „Optymalizacja koszyka”. [ZAŁOŻENIE — wartość do zmierzenia w walidacji]
 
+**Prior art zespołu:** repozytorium `mmbogusz/optmizer` — działający optymalizator koszyka dla gastronomii (MILP/HiGHS, promocje jako tryby zakupu, progi darmowej dostawy, minima, jednostka zakupu vs zawartość, pozycja z alternatywami, zamienniki „tylko przy braku”, wariant bez dostawcy, wypełniacze do progu, następny najtańszy jako cel negocjacji, import ofert przez LLM z regułami blokującymi, testy złote + brute-force). Do dobudowania dla budownictwa: rabaty od wartości zamówienia i na grupę producenta, dostawy w czasie i na kilka budów, termin płatności i limit kredytu, ważność ofert, ilości na metry, jeden wariant/system na pozycję, stan akceptacji zamiennika. Mapa funkcji: raport 02, sekcja „Prototyp referencyjny”. [FAKT-KOD — repozytorium optmizer, poza platformą]
+
 ## Kandydaci na epiki
 
 | Epik | Krok procesu |
