@@ -2,6 +2,15 @@
   "version": 1,
   "baseBranch": "develop",
   "tracker": "github",
+  "platform": {
+    "repo": "open-mercato/open-mercato",
+    "branch": "develop",
+    "companionRepo": "open-mercato/official-modules",
+    "tierMap": [
+      { "pathPrefix": "packages/enterprise/", "tier": "enterprise" }
+    ],
+    "significantPrAdditions": 10000
+  },
   "browser": {
     "provider": "playwright"
   },
