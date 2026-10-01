@@ -49,11 +49,11 @@ None needed — single-function change with an obvious surface. Related: #1481, 
 <summary>🔍 Implementation notes</summary>
 
 1. Add `isXlsx(mimeType, ext)` (`application/vnd.openxmlformats-officedocument.spreadsheetml.sheet` or `.xlsx`) and `extractXlsxText(filePath)`; dispatch before the final `return null` and narrow the comment to the formats still unsupported.
-2. Open the archive with `jszip` (see `packages/documents/src/modules/documents/lib/docxRenderer.ts` for how it is loaded so the bundler traces it). Before inflating: reject when the entry count or the sum of declared uncompressed sizes exceeds the cap; while inflating, count real bytes and abort past the cap (headers can lie).
-3. Resolve sheets via `xl/workbook.xml` + `xl/_rels/workbook.xml.rels`, read `xl/sharedStrings.xml`, walk each worksheet's `sheetData`. Cell types `s`, `inlineStr`, `str`, `n`, `b`, `e`; use the cached `<v>`, never evaluate `<f>`.
-4. Output: one `## <sheet name>` line per sheet, then tab-separated rows; skip empty rows; stop at the cell cap / output-length cap and `logger.warn` on truncation (as #6264 does for PDF pages).
+2. Load `hucre/xlsx` with a dynamic `import()` (as `pdfjs-dist` is loaded today) and read with explicit bounds: `maxDecompressedBytes` (zip-bomb cap, per entry), `maxTotalCells`, and `sparse: true` or `streamXlsxRows` per sheet so a sparse sheet does not allocate its bounding box. Cell values come from cached results; formulas are never evaluated.
+3. Keep the library behind `extractXlsxText(filePath)` so it can be swapped without touching callers; pin the exact version.
+4. Output: one `## <sheet name>` line per sheet, then tab-separated rows; skip empty rows; stop at the output-length cap and `logger.warn` on truncation (as #6264 does for PDF pages). A `ZipError` / parse error → `null`, logged.
 5. Limits next to the OCR ones (proposal): `OM_ATTACHMENT_XLSX_MAX_UNCOMPRESSED_BYTES`, `OM_ATTACHMENT_XLSX_MAX_CELLS`; mirror in `apps/mercato/.env.example` and the create-app template (`yarn template:sync:fix`).
-6. Tests in `attachments/lib/__tests__/textExtraction.test.ts`, building workbooks with `jszip` in the test: shared/inline strings, formula with cached value, multiple sheets, empty sheet, corrupt archive, oversized declared size, cell-cap truncation.
+6. Tests in `attachments/lib/__tests__/textExtraction.test.ts`, building workbooks in the test (no binary fixtures): shared/inline strings, rich text, `x:`-prefixed parts (OpenXML SDK exports), formula with cached value, multiple sheets, empty sheet, corrupt archive, zip bomb, cell-cap truncation. `hucre` ships ESM only (`.mjs`), so `packages/core/jest.config.cjs` needs it in `transformIgnorePatterns` with an `.mjs` transform (or the test runs it through the existing dynamic-import path).
 7. Docs: add XLSX to the "Pure-JS extraction" section of `apps/docs/docs/api/attachments.mdx` and the format table in the 2026-04-27 spec.
 
 Extraction runs synchronously in the upload request (`attachments/api/route.ts`, `lib/scoped-upload-service.ts`) and in the OCR overflow fallback (`lib/ocrQueue.ts`), so the bounds are what keep upload latency and memory predictable.
@@ -62,7 +62,9 @@ Extraction runs synchronously in the upload request (`attachments/api/route.ts`,
 
 ## ⚠️ Open questions
 
-1. **Blocking — dependency sign-off.** Proposal: `jszip` (3.10.1, already a production dependency of `@open-mercato/documents` and in `yarn.lock`) plus `fast-xml-parser` (5.10.1, already in `yarn.lock` transitively via `@google-cloud/storage`) as direct dependencies of `@open-mercato/core` — no new packages in the tree. Rejected: SheetJS `xlsx` from npm (the registry stops at 0.18.5, which carries known high-severity advisories — would fail the audit gate); `exceljs` (large dependency tree for a read-only need). Alternative if a second parser is unwanted: a minimal hand-written reader for the few OOXML elements needed, on `jszip` only.
+1. **Blocking — dependency sign-off.** Proposal: [`hucre`](https://github.com/productdevbook/hucre) (MIT, pure TypeScript, native ESM, zero dependencies, Node ≥ 24 like this repo) as one direct dependency of `@open-mercato/core`, imported only via `hucre/xlsx`. It exposes the bounds this needs (`maxDecompressedBytes`, `maxTotalCells`, `maxSpinCount`, `sparse`, streaming rows) and in a local check it rejected a 300 MB zip bomb at a 50 MB cap, did not expand a "billion laughs" DTD, and read `x:`-prefixed parts, inline and rich-text strings and cached formula values correctly. Trade-off: the project is young (first release March 2026) with a small maintainer base — mitigated by pinning and by the wrapper in note 3.
+   Considered and rejected: SheetJS `xlsx` (npm stops at 0.18.5 with known high-severity advisories, patched builds only from its own CDN — would fail the audit gate); `exceljs` (no release since 4.4.0 in 2023, nine runtime dependencies with open advisories, CommonJS); `read-excel-file` (mature and maintained, but no documented decompression or cell bounds for untrusted input).
+   Fallback if a new package is unwanted: a minimal reader for the few OOXML elements needed on `jszip` (already a production dependency of `@open-mercato/documents`) — more code owned here, more edge cases to test.
 2. Non-blocking — output format: tab-separated rows (compact for LLM context) vs markdown tables.
 3. Non-blocking — default caps (proposal: 50 MB uncompressed, 200k cells).
 4. Non-blocking — dates stay as Excel serial numbers (no style-based formatting) in this change.
@@ -74,7 +76,7 @@ Builds on #6264 (same file, same limits pattern); the PR will be rebased after #
 
 - ✨ `feature` — restores a capability (text from spreadsheets) that the platform does not have today.
 - 🟡 `priority-medium` — net-new feature, not release-blocking.
-- 🟠 `risk-medium` — single-module change shipped with tests, but it parses untrusted uploads in the request path and adds direct production dependencies to `@open-mercato/core`.
+- 🟠 `risk-medium` — single-module change shipped with tests, but it parses untrusted uploads in the request path and adds a direct production dependency to `@open-mercato/core`.
 
 </details>
 
@@ -82,4 +84,4 @@ Builds on #6264 (same file, same limits pattern); the PR will be rebased after #
 
 ## Pierwszy komentarz (zgłoszenie chęci, po utworzeniu issue)
 
-> I'd like to take this. Plan: wait for #6264 to merge, then open a PR on top of it following the implementation notes above. Before writing code I'd appreciate a 👍 / 👎 on the dependency choice (open question 1) from a maintainer — happy to go with the jszip-only variant if a second parser is unwanted.
+> I'd like to take this. Plan: wait for #6264 to merge, then open a PR on top of it following the implementation notes above. Before writing code I'd appreciate a 👍 / 👎 on the dependency choice (open question 1) from a maintainer — happy to go with the jszip-only fallback if a new package is unwanted.
