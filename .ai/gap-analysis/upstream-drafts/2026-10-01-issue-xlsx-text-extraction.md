@@ -71,6 +71,8 @@ Extraction runs synchronously in the upload request (`attachments/api/route.ts`,
 
 Builds on #6264 (same file, same limits pattern); the PR will be rebased after #6264 merges.
 
+Out of scope here, but the same vetted dependency would let later, separate PRs drop hand-rolled code or add `.xlsx` where users now have to "save as CSV": `.xlsx` uploads in `sync_excel` and in the WMS inventory import (both CSV-only today), the dependency-free XLSX writer in `staff/lib/timesheets-reports/xlsx.ts` (written by hand because the repo has no spreadsheet library), and the two separate `parseCsvText` implementations in `sync_excel/lib/parser.ts` and `wms/lib/inventoryImportCsv.ts`.
+
 <details>
 <summary>🏷️ label rationale</summary>
 
