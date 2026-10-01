@@ -84,6 +84,13 @@ Skala rynku: ok. 442 tys. aktywnych firm budowlanych, 95,9% to mikrofirmy (GUS, 
 - Wysyłka z podłączonej skrzynki pracownika z wątkowaniem istnieje (`communication_channels`); brak wysyłki jednej paczki do wielu odbiorców. [KOD-POBIEŻNIE]
 - AI: agenci i akcja „summarize” w CRM działają na żądanie; brak trwałego, aktualizowanego podsumowania wątku. Wzorzec propozycji do akceptacji z `inbox_ops` nadaje się na szkice wiadomości negocjacyjnych. [KOD-POBIEŻNIE]
 
+## Decyzje (2026-10-01)
+
+- D1. Budujemy w OSS — bez zależności od `packages/enterprise` (np. polityka auto-akceptacji powstaje w OSS).
+- D2. PoC bez konektorów ERP na żywo; wynik jako zamówienia per hurtownia (PDF/mail/CSV).
+- D3. Strategia upstreamu zależna od rodzaju zmiany (ogólne luki → upstream-first; domena → moduł aplikacji; zablokowane → nakładka z terminem).
+- Szczegóły i dane: `.ai/gap-analysis/decyzje-i-pytania-2026-10-01.md`; ponowne użycie optymalizatora: `04-optmizer-mapa-reuzycia.md`.
+
 ## Reguły biznesowe (propozycje)
 
 - R1. Żadna wiadomość do oferenta nie wychodzi bez zatwierdzenia przez człowieka (do czasu decyzji o polityce progowej). [ZAŁOŻENIE]
