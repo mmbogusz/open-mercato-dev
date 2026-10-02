@@ -30,7 +30,7 @@ Proposal: restore XLSX extraction in pure JS, in-process, with explicit resource
 - Bounds configurable by env, following the `ocrLimits.ts` pattern from #6264.
 - Docs (`apps/docs/docs/api/attachments.mdx`) and both `.env.example` files.
 
-Non-goals: legacy `.xls` (BIFF8) and `.xlsb` — the same library reads them, but its documented resource bounds do not cover them (`.xlsb` is a ZIP without the decompression cap; `.xls` only honours the cell cap), so they need their own hardening and tests in a follow-up; PPTX/MSG; formula evaluation; number/date formatting from styles; images in sheets; `.xlsx` support in `sync_excel` imports (possible follow-up reusing the same reader).
+Non-goals: legacy `.xls` (BIFF8) and `.xlsb` — the same library reads them, but not with the same guarantees yet: in 1.x `readXlsb` honours the decompression cap but has no cell cap (added in the unreleased v2, productdevbook/hucre#570), and `.xls` has the cell cap but is not covered by the library's fuzz tests and needs committed binary fixtures (the library cannot write `.xls`). Follow-up PRs; PPTX/MSG; formula evaluation; number/date formatting from styles; images in sheets; `.xlsx` support in `sync_excel` imports (possible follow-up reusing the same reader).
 
 No DB, API or event changes; `extractAttachmentContent` keeps its signature. Only new uploads are affected.
 
@@ -71,7 +71,7 @@ Extraction runs synchronously in the upload request (`attachments/api/route.ts`,
 
 Builds on #6264 (same file, same limits pattern); the PR will be rebased after #6264 merges.
 
-Out of scope here, but the same vetted dependency would let later, separate PRs add `.xls`/`.xlsb` extraction once their bounds are hardened, drop hand-rolled code or add `.xlsx` where users now have to "save as CSV": `.xlsx` uploads in `sync_excel` and in the WMS inventory import (both CSV-only today), the dependency-free XLSX writer in `staff/lib/timesheets-reports/xlsx.ts` (written by hand because the repo has no spreadsheet library), and the two separate `parseCsvText` implementations in `sync_excel/lib/parser.ts` and `wms/lib/inventoryImportCsv.ts`. The financial module work points the same way: SPEC-024 lists Excel among high-priority report export formats and CSV bank-statement import, and the default chart-of-accounts spec (#6137) anticipates importing a "plan kont" from Excel.
+Out of scope here, but the same vetted dependency would let later, separate PRs add `.xls` (with committed fixtures) and `.xlsb` (once a release carries its cell cap) extraction, drop hand-rolled code or add `.xlsx` where users now have to "save as CSV": `.xlsx` uploads in `sync_excel` and in the WMS inventory import (both CSV-only today), the dependency-free XLSX writer in `staff/lib/timesheets-reports/xlsx.ts` (written by hand because the repo has no spreadsheet library), and the two separate `parseCsvText` implementations in `sync_excel/lib/parser.ts` and `wms/lib/inventoryImportCsv.ts`. The financial module work points the same way: SPEC-024 lists Excel among high-priority report export formats and CSV bank-statement import, and the default chart-of-accounts spec (#6137) anticipates importing a "plan kont" from Excel.
 
 <details>
 <summary>🏷️ label rationale</summary>
