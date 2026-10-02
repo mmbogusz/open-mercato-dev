@@ -14,7 +14,7 @@
 
 ---
 
-**Title:** `Implement: pure-JS, bounded XLSX text extraction for attachments`
+**Title:** `Implement: pure-JS, bounded spreadsheet (XLSX/XLSM/ODS) text extraction for attachments`
 
 **Body:**
 
@@ -26,17 +26,17 @@ Proposal: restore XLSX extraction in pure JS, in-process, with explicit resource
 
 ## 📋 Scope
 
-- `packages/core/src/modules/attachments/lib/textExtraction.ts`: an `.xlsx` branch that returns sheet names and cell values as plain text.
+- `packages/core/src/modules/attachments/lib/textExtraction.ts`: a spreadsheet branch that returns sheet names and cell values as plain text for `.xlsx`, `.xlsm`, `.xltx` (same OOXML container and reader; macros are never read or run) and `.ods` (OpenDocument, e.g. LibreOffice exports).
 - Bounds configurable by env, following the `ocrLimits.ts` pattern from #6264.
 - Docs (`apps/docs/docs/api/attachments.mdx`) and both `.env.example` files.
 
-Non-goals: legacy `.xls` (BIFF), `.xlsm`, `.xlsb`, `.ods`, PPTX/MSG; formula evaluation; number/date formatting from styles; images in sheets; `.xlsx` support in `sync_excel` imports (possible follow-up reusing the same reader).
+Non-goals: legacy `.xls` (BIFF8) and `.xlsb` — the same library reads them, but its documented resource bounds do not cover them (`.xlsb` is a ZIP without the decompression cap; `.xls` only honours the cell cap), so they need their own hardening and tests in a follow-up; PPTX/MSG; formula evaluation; number/date formatting from styles; images in sheets; `.xlsx` support in `sync_excel` imports (possible follow-up reusing the same reader).
 
 No DB, API or event changes; `extractAttachmentContent` keeps its signature. Only new uploads are affected.
 
 ## ✅ Done when
 
-- Uploading an `.xlsx` to a partition with OCR/extraction enabled stores text containing each sheet name and its cell values (shared strings, inline strings, numbers, booleans, cached formula results).
+- Uploading an `.xlsx`, `.xlsm` or `.ods` to a partition with OCR/extraction enabled stores text containing each sheet name and its cell values (shared strings, inline strings, numbers, booleans, cached formula results).
 - A corrupt file, a zip bomb (declared or actual uncompressed size over the cap) or a file over the cell cap never fails the upload: extraction returns `null` or truncated text and logs a warning.
 - No `child_process`; the HUNT-PARSER-01 regression guards still pass.
 - Unit tests cover the cases above with fixtures built in the test (no binary fixtures).
@@ -48,13 +48,13 @@ None needed — single-function change with an obvious surface. Related: #1481, 
 <details>
 <summary>🔍 Implementation notes</summary>
 
-1. Add `isXlsx(mimeType, ext)` (`application/vnd.openxmlformats-officedocument.spreadsheetml.sheet` or `.xlsx`) and `extractXlsxText(filePath)`; dispatch before the final `return null` and narrow the comment to the formats still unsupported.
-2. Load `hucre/xlsx` with a dynamic `import()` (as `pdfjs-dist` is loaded today) and read with explicit bounds: `maxDecompressedBytes` (zip-bomb cap, per entry), `maxTotalCells`, and `sparse: true` or `streamXlsxRows` per sheet so a sparse sheet does not allocate its bounding box. Cell values come from cached results; formulas are never evaluated.
-3. Keep the library behind `extractXlsxText(filePath)` so it can be swapped without touching callers; declare it as `^1.1.0` like the repo's other dependencies (the caret keeps it on 1.x). A v2 with breaking changes is in progress upstream (productdevbook/hucre#570: per-format option types such as `XlsxReadOptions`, structured `CellError` values, rectangular `rows`); `readXlsx`/`streamXlsxRows` keep their signatures, so with the wrapper the migration is an options-type rename plus formatting error cells — write the cell-to-text formatter to accept non-primitive values from the start.
+1. Add `isSpreadsheet(mimeType, ext)` — OOXML (`application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, `…spreadsheetml.template`, `application/vnd.ms-excel.sheet.macroEnabled.12`; `.xlsx`/`.xlsm`/`.xltx`) and ODS (`application/vnd.oasis.opendocument.spreadsheet`, `.ods`) — and `extractSpreadsheetText(filePath, kind)`; dispatch before the final `return null` and narrow the comment to the formats still unsupported (`.xls`, `.xlsb`).
+2. Load `hucre/xlsx` or `hucre/ods` (format subpaths, not the root entry that also pulls the `.xls`/`.xlsb` readers) with a dynamic `import()` (as `pdfjs-dist` is loaded today) and read with explicit bounds: `maxDecompressedBytes` (zip-bomb cap, per entry), `maxTotalCells`, and `sparse: true` or `streamXlsxRows` per sheet so a sparse sheet does not allocate its bounding box (`sparse`/streaming are XLSX-only; ODS relies on `maxTotalCells` + `maxDecompressedBytes`). Cell values come from cached results; formulas are never evaluated.
+3. Keep the library behind `extractSpreadsheetText(filePath, kind)` so it can be swapped without touching callers; declare it as `^1.1.0` like the repo's other dependencies (the caret keeps it on 1.x). A v2 with breaking changes is in progress upstream (productdevbook/hucre#570: per-format option types such as `XlsxReadOptions`, structured `CellError` values, rectangular `rows`); `readXlsx`/`streamXlsxRows` keep their signatures, so with the wrapper the migration is an options-type rename plus formatting error cells — write the cell-to-text formatter to accept non-primitive values from the start.
 4. Output: one `## <sheet name>` line per sheet, then tab-separated rows; skip empty rows; stop at the output-length cap and `logger.warn` on truncation (as #6264 does for PDF pages). A `ZipError` / parse error → `null`, logged.
 5. Limits next to the OCR ones (proposal): `OM_ATTACHMENT_XLSX_MAX_UNCOMPRESSED_BYTES`, `OM_ATTACHMENT_XLSX_MAX_CELLS`; mirror in `apps/mercato/.env.example` and the create-app template (`yarn template:sync:fix`).
-6. Tests in `attachments/lib/__tests__/textExtraction.test.ts`, building workbooks in the test (no binary fixtures): shared/inline strings, rich text, `x:`-prefixed parts (OpenXML SDK exports), formula with cached value, multiple sheets, empty sheet, corrupt archive, zip bomb, cell-cap truncation. `hucre` ships ESM only (`.mjs`), so `packages/core/jest.config.cjs` needs it in `transformIgnorePatterns` with an `.mjs` transform (or the test runs it through the existing dynamic-import path).
-7. Docs: add XLSX to the "Pure-JS extraction" section of `apps/docs/docs/api/attachments.mdx` and the format table in the 2026-04-27 spec.
+6. Tests in `attachments/lib/__tests__/textExtraction.test.ts`, building workbooks in the test (no binary fixtures): shared/inline strings, rich text, `x:`-prefixed parts (OpenXML SDK exports), formula with cached value, multiple sheets, empty sheet, macro-enabled `.xlsm` (VBA part ignored), `.ods`, corrupt archive, zip bomb (XLSX and ODS), cell-cap truncation. `hucre` ships ESM only (`.mjs`), so `packages/core/jest.config.cjs` needs it in `transformIgnorePatterns` with an `.mjs` transform (or the test runs it through the existing dynamic-import path).
+7. Docs: add XLSX/XLSM/ODS to the "Pure-JS extraction" section of `apps/docs/docs/api/attachments.mdx` and the format table in the 2026-04-27 spec.
 
 Extraction runs synchronously in the upload request (`attachments/api/route.ts`, `lib/scoped-upload-service.ts`) and in the OCR overflow fallback (`lib/ocrQueue.ts`), so the bounds are what keep upload latency and memory predictable.
 
@@ -62,7 +62,7 @@ Extraction runs synchronously in the upload request (`attachments/api/route.ts`,
 
 ## ⚠️ Open questions
 
-1. **Blocking — dependency sign-off.** Proposal: [`hucre`](https://github.com/productdevbook/hucre) (MIT, pure TypeScript, native ESM, zero dependencies, Node ≥ 24 like this repo) as one direct dependency of `@open-mercato/core`, imported only via `hucre/xlsx`. It exposes the bounds this needs (`maxDecompressedBytes`, `maxTotalCells`, `maxSpinCount`, `sparse`, streaming rows) and in a local check it rejected a 300 MB zip bomb at a 50 MB cap, did not expand a "billion laughs" DTD, and read `x:`-prefixed parts, inline and rich-text strings and cached formula values correctly. Trade-off: the project is young (first release March 2026) with a small maintainer base — mitigated by staying on 1.x and by the wrapper in note 3. It would sit next to `pdfjs-dist` and `mammoth`, which already serve the same function for PDF and DOCX.
+1. **Blocking — dependency sign-off.** Proposal: [`hucre`](https://github.com/productdevbook/hucre) (MIT, pure TypeScript, native ESM, zero dependencies, Node ≥ 24 like this repo) as one direct dependency of `@open-mercato/core`, imported only via `hucre/xlsx` and `hucre/ods`. It exposes the bounds this needs (`maxDecompressedBytes`, `maxTotalCells`, `maxSpinCount`, `sparse`, streaming rows) and in a local check it rejected a 300 MB zip bomb at a 50 MB cap, rejected the same bomb packed as `.ods`, did not expand a "billion laughs" DTD, and read `.xlsm`, `.ods`, `x:`-prefixed parts, inline and rich-text strings and cached formula values correctly. Trade-off: the project is young (first release March 2026) with a small maintainer base — mitigated by staying on 1.x and by the wrapper in note 3. It would sit next to `pdfjs-dist` and `mammoth`, which already serve the same function for PDF and DOCX.
    Considered and rejected: SheetJS `xlsx` (npm stops at 0.18.5 with known high-severity advisories, patched builds only from its own CDN — would fail the audit gate); `exceljs` (no release since 4.4.0 in 2023, nine runtime dependencies with open advisories, CommonJS); `read-excel-file` (mature and maintained, but no documented decompression or cell bounds for untrusted input).
    Fallback if a new package is unwanted: a minimal reader for the few OOXML elements needed on `jszip` (already a production dependency of `@open-mercato/documents`) — more code owned here, more edge cases to test.
 2. Non-blocking — output format: tab-separated rows (compact for LLM context) vs markdown tables.
@@ -71,7 +71,7 @@ Extraction runs synchronously in the upload request (`attachments/api/route.ts`,
 
 Builds on #6264 (same file, same limits pattern); the PR will be rebased after #6264 merges.
 
-Out of scope here, but the same vetted dependency would let later, separate PRs drop hand-rolled code or add `.xlsx` where users now have to "save as CSV": `.xlsx` uploads in `sync_excel` and in the WMS inventory import (both CSV-only today), the dependency-free XLSX writer in `staff/lib/timesheets-reports/xlsx.ts` (written by hand because the repo has no spreadsheet library), and the two separate `parseCsvText` implementations in `sync_excel/lib/parser.ts` and `wms/lib/inventoryImportCsv.ts`. The financial module work points the same way: SPEC-024 lists Excel among high-priority report export formats and CSV bank-statement import, and the default chart-of-accounts spec (#6137) anticipates importing a "plan kont" from Excel.
+Out of scope here, but the same vetted dependency would let later, separate PRs add `.xls`/`.xlsb` extraction once their bounds are hardened, drop hand-rolled code or add `.xlsx` where users now have to "save as CSV": `.xlsx` uploads in `sync_excel` and in the WMS inventory import (both CSV-only today), the dependency-free XLSX writer in `staff/lib/timesheets-reports/xlsx.ts` (written by hand because the repo has no spreadsheet library), and the two separate `parseCsvText` implementations in `sync_excel/lib/parser.ts` and `wms/lib/inventoryImportCsv.ts`. The financial module work points the same way: SPEC-024 lists Excel among high-priority report export formats and CSV bank-statement import, and the default chart-of-accounts spec (#6137) anticipates importing a "plan kont" from Excel.
 
 <details>
 <summary>🏷️ label rationale</summary>
