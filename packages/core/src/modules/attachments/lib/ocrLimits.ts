@@ -6,8 +6,9 @@ const DEFAULT_OCR_PAGE_TIMEOUT_MS = 60_000
 const DEFAULT_OCR_MAX_OUTPUT_TOKENS = 4_096
 const DEFAULT_OCR_MAX_CONCURRENCY = 2
 const DEFAULT_OCR_MAX_WAIT_QUEUE = 50
-const DEFAULT_SPREADSHEET_MAX_UNCOMPRESSED_BYTES = 50 * 1024 * 1024
-const DEFAULT_SPREADSHEET_MAX_CELLS = 200_000
+const DEFAULT_SPREADSHEET_MAX_UNCOMPRESSED_BYTES = 10 * 1024 * 1024
+const DEFAULT_SPREADSHEET_MAX_SHEETS = 10
+const DEFAULT_SPREADSHEET_MAX_CELLS = 1_000_000
 const DEFAULT_SPREADSHEET_MAX_TEXT_CHARS = 1_000_000
 
 function parsePositiveInt(raw: string | undefined, fallback: number): number {
@@ -50,7 +51,12 @@ export function resolveSpreadsheetMaxUncompressedBytes(): number {
   )
 }
 
-/** Max non-empty cells read from one spreadsheet across all sheets (env: OM_ATTACHMENT_SPREADSHEET_MAX_CELLS). */
+/** Max worksheets read from one spreadsheet (env: OM_ATTACHMENT_SPREADSHEET_MAX_SHEETS). */
+export function resolveSpreadsheetMaxSheets(): number {
+  return parsePositiveInt(process.env.OM_ATTACHMENT_SPREADSHEET_MAX_SHEETS, DEFAULT_SPREADSHEET_MAX_SHEETS)
+}
+
+/** Max grid cells scanned from one spreadsheet across all sheets, empty ones included (env: OM_ATTACHMENT_SPREADSHEET_MAX_CELLS). */
 export function resolveSpreadsheetMaxCells(): number {
   return parsePositiveInt(process.env.OM_ATTACHMENT_SPREADSHEET_MAX_CELLS, DEFAULT_SPREADSHEET_MAX_CELLS)
 }

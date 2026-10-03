@@ -64,18 +64,22 @@ describe('ocrLimits', () => {
 
   it('defaults spreadsheet extraction bounds and honors env overrides', async () => {
     delete process.env.OM_ATTACHMENT_SPREADSHEET_MAX_UNCOMPRESSED_BYTES
+    delete process.env.OM_ATTACHMENT_SPREADSHEET_MAX_SHEETS
     delete process.env.OM_ATTACHMENT_SPREADSHEET_MAX_CELLS
     delete process.env.OM_ATTACHMENT_SPREADSHEET_MAX_TEXT_CHARS
 
     const defaults = await import('../ocrLimits')
-    expect(defaults.resolveSpreadsheetMaxUncompressedBytes()).toBe(50 * 1024 * 1024)
-    expect(defaults.resolveSpreadsheetMaxCells()).toBe(200_000)
+    expect(defaults.resolveSpreadsheetMaxUncompressedBytes()).toBe(10 * 1024 * 1024)
+    expect(defaults.resolveSpreadsheetMaxSheets()).toBe(10)
+    expect(defaults.resolveSpreadsheetMaxCells()).toBe(1_000_000)
     expect(defaults.resolveSpreadsheetMaxTextChars()).toBe(1_000_000)
 
     process.env.OM_ATTACHMENT_SPREADSHEET_MAX_UNCOMPRESSED_BYTES = '1024'
+    process.env.OM_ATTACHMENT_SPREADSHEET_MAX_SHEETS = '3'
     process.env.OM_ATTACHMENT_SPREADSHEET_MAX_CELLS = '10'
     process.env.OM_ATTACHMENT_SPREADSHEET_MAX_TEXT_CHARS = 'not-a-number'
     expect(defaults.resolveSpreadsheetMaxUncompressedBytes()).toBe(1024)
+    expect(defaults.resolveSpreadsheetMaxSheets()).toBe(3)
     expect(defaults.resolveSpreadsheetMaxCells()).toBe(10)
     expect(defaults.resolveSpreadsheetMaxTextChars()).toBe(1_000_000)
   })
