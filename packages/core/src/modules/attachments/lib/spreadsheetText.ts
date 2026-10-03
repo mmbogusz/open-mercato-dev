@@ -58,6 +58,11 @@ function formatCellValue(value: unknown): string {
   return ''
 }
 
+function joinLines(state: ExtractionState): string | null {
+  const text = state.lines.join('\n').trim()
+  return text.length > 0 ? text : null
+}
+
 function renderRow(values: readonly unknown[], maxLength: number): RenderedRow {
   const cells: string[] = []
   let length = 0
@@ -117,11 +122,11 @@ export async function extractSpreadsheetText(
   filePath: string,
   limits: SpreadsheetTextLimits = resolveSpreadsheetTextLimits(),
 ): Promise<string | null> {
+  const state: ExtractionState = { lines: [], textLength: 0, scannedCells: 0 }
   try {
     const { streamXlsxRows } = await import('hucre/xlsx')
     const data = new Uint8Array(await fs.readFile(filePath))
     const sheetNames = await readSheetNames(data, limits.maxUncompressedBytes)
-    const state: ExtractionState = { lines: [], textLength: 0, scannedCells: 0 }
     let truncatedBy: SpreadsheetCap | null = sheetNames.length > limits.maxSheets ? 'sheets' : null
     const sheetCount = Math.min(sheetNames.length, limits.maxSheets)
     for (let sheetIndex = 0; sheetIndex < sheetCount; sheetIndex += 1) {
@@ -143,14 +148,13 @@ export async function extractSpreadsheetText(
         maxTextChars: limits.maxTextChars,
       })
     }
-    const text = state.lines.join('\n').trim()
-    return text.length > 0 ? text : null
+    return joinLines(state)
   } catch (error) {
-    logger.warn('Spreadsheet text extraction failed', { filePath, err: error })
+    logger.warn('Spreadsheet text extraction failed', { filePath, keptLines: state.lines.length, err: error })
     getTelemetryRuntime()?.reportError(error, {
       module: 'attachments',
       code: 'attachments.spreadsheet_extraction_failed',
     })
-    return null
+    return joinLines(state)
   }
 }

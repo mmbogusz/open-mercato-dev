@@ -144,6 +144,19 @@ describe('extractSpreadsheetText', () => {
     expect(mockReportError).toHaveBeenCalledTimes(1)
   })
 
+  it('keeps text already read when a later sheet exceeds the decompression cap', async () => {
+    const filePath = await writeWorkbook('partial.xlsx', {
+      stringMode: 'inline',
+      sheets: [
+        { name: 'Mały', rows: [['a']] },
+        { name: 'Duży', rows: Array.from({ length: 300 }, (_, index) => [index, index * 2, index * 3]) },
+      ],
+    })
+
+    await expect(extract(filePath, { maxUncompressedBytes: 4_096 })).resolves.toBe(['## Mały', 'a'].join('\n'))
+    expect(mockReportError).toHaveBeenCalledTimes(1)
+  })
+
   it('stops after the configured number of sheets', async () => {
     const filePath = await writeWorkbook('sheets.xlsx', {
       sheets: [
