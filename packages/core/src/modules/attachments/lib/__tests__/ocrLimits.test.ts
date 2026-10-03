@@ -62,6 +62,24 @@ describe('ocrLimits', () => {
     expect(again.resolveMaxOcrPages()).toBe(50)
   })
 
+  it('defaults spreadsheet extraction bounds and honors env overrides', async () => {
+    delete process.env.OM_ATTACHMENT_SPREADSHEET_MAX_UNCOMPRESSED_BYTES
+    delete process.env.OM_ATTACHMENT_SPREADSHEET_MAX_CELLS
+    delete process.env.OM_ATTACHMENT_SPREADSHEET_MAX_TEXT_CHARS
+
+    const defaults = await import('../ocrLimits')
+    expect(defaults.resolveSpreadsheetMaxUncompressedBytes()).toBe(50 * 1024 * 1024)
+    expect(defaults.resolveSpreadsheetMaxCells()).toBe(200_000)
+    expect(defaults.resolveSpreadsheetMaxTextChars()).toBe(1_000_000)
+
+    process.env.OM_ATTACHMENT_SPREADSHEET_MAX_UNCOMPRESSED_BYTES = '1024'
+    process.env.OM_ATTACHMENT_SPREADSHEET_MAX_CELLS = '10'
+    process.env.OM_ATTACHMENT_SPREADSHEET_MAX_TEXT_CHARS = 'not-a-number'
+    expect(defaults.resolveSpreadsheetMaxUncompressedBytes()).toBe(1024)
+    expect(defaults.resolveSpreadsheetMaxCells()).toBe(10)
+    expect(defaults.resolveSpreadsheetMaxTextChars()).toBe(1_000_000)
+  })
+
   it('exposes attachments upload rate-limit defaults', async () => {
     delete process.env.RATE_LIMIT_ATTACHMENTS_UPLOAD_POINTS
     delete process.env.RATE_LIMIT_ATTACHMENTS_UPLOAD_DURATION
